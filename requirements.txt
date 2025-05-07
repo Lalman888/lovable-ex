@@ -1,0 +1,33 @@
+# Core Framework
+fastapi
+uvicorn[standard] # Includes standard dependencies like websockets and http tools
+
+# Database & ORM/ODM
+motor # Async MongoDB driver
+pydantic # Data validation
+
+# Security
+python-jose[cryptography] # For JWT handling
+passlib[bcrypt] # For password hashing
+
+# Messaging & Task Queue
+aiokafka # Async Kafka client
+celery[redis] # Celery with Redis broker/backend support
+redis # Direct Redis client (might be needed besides Celery's)
+
+# Logging & Monitoring
+cmreslogging # Example logging handler (replace/add others as needed)
+elasticsearch # Elasticsearch client library
+prometheus-client # For exposing Prometheus metrics
+
+# API Utilities
+python-multipart # For handling form data (file uploads, etc.)
+
+# Testing
+pytest
+pytest-asyncio
+testcontainers[kafka,mongo,redis] # For integration testing with containers
+
+# Code Quality & Typing
+mypy
+flake8

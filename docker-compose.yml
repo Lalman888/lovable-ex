@@ -1,0 +1,204 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.2
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - app-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.2
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - app-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - app-network
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app-network
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9 # Using a specific version compatible with Kibana
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Adjust memory limits as needed
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - app-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.9 # Matching Elasticsearch version
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    networks:
+      - app-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - app-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin # Default password, change in production
+    networks:
+      - app-network
+
+  fastapi-app:
+    build:
+      context: . # Assuming Dockerfile is in the root directory
+      dockerfile: Dockerfile.fastapi # Specify the Dockerfile name if different
+    container_name: fastapi-app
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - kafka
+      - mongo
+      - redis
+      - elasticsearch
+    volumes:
+      - .:/app # Mount current directory to /app in container for development
+      - /tmp/prometheus_multiproc_dir:/tmp/prometheus_multiproc_dir # Mount the prometheus metrics dir
+    networks:
+      - app-network
+    # Add command if needed, e.g., uvicorn command
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery # Specify the Dockerfile name if different
+    container_name: celery-worker
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - kafka
+      - mongo
+      - elasticsearch
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info"] # Adjust 'app.worker.celery_app' to your Celery app path
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery # Re-use the same image? Or create a specific one?
+    container_name: celery-beat
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - kafka
+    command: ["celery", "-A", "app.worker.celery_app", "beat", "--loglevel=info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"] # Adjust app path and scheduler if needed
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+
+  flower:
+    image: mher/flower:latest
+    container_name: flower
+    env_file:
+      - .env # Pass REDIS_URL for Flower to connect
+    environment:
+      - CELERY_BROKER_URL=${REDIS_URL}
+      - FLOWER_PORT=5555
+      # Add basic auth if needed: FLOWER_BASIC_AUTH=user:password
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - celery-worker # Optional, but good practice
+    networks:
+      - app-network
+
+volumes:
+  mongo_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  app-network:
+    driver: bridge

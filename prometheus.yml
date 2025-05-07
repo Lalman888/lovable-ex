@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s # Default scrape interval
+
+scrape_configs:
+  - job_name: 'prometheus' # Scrape Prometheus itself
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'fastapi'
+    # Metrics are exposed on the main app endpoint, adjust if needed
+    # If using multiple Uvicorn workers, ensure prometheus_client multiprocess mode is configured
+    # and the PROMETHEUS_MULTIPROC_DIR is shared via a volume.
+    static_configs:
+      - targets: ['fastapi-app:8000'] # Docker service name and port
+
+  - job_name: 'flower'
+    # Flower exposes Prometheus metrics at /metrics
+    static_configs:
+      - targets: ['flower:5555'] # Docker service name and port
+
+  # Add other jobs here if needed, e.g., for Celery workers directly
+  # (Requires a separate exporter like celery-exporter)
+  # - job_name: 'celery'
+  #   static_configs:
+  #     - targets: ['celery-worker:9808'] # Example port for celery-exporter
