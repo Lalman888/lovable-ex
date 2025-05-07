@@ -123,8 +123,8 @@ services:
 
   fastapi-app:
     build:
-      context: . # Assuming Dockerfile is in the root directory
-      dockerfile: Dockerfile.fastapi # Specify the Dockerfile name if different
+      context: ./app # Changed context to app directory
+      dockerfile: Dockerfile.fastapi # Use the FastAPI specific Dockerfile
     container_name: fastapi-app
     env_file:
       - .env
@@ -136,16 +136,17 @@ services:
       - redis
       - elasticsearch
     volumes:
-      - .:/app # Mount current directory to /app in container for development
+      # Mount the app directory for development; adjust if needed for production
+      - ./app:/app
       - /tmp/prometheus_multiproc_dir:/tmp/prometheus_multiproc_dir # Mount the prometheus metrics dir
     networks:
       - app-network
-    # Add command if needed, e.g., uvicorn command
+    # The default CMD from Dockerfile.fastapi is used here
 
   celery-worker:
     build:
-      context: .
-      dockerfile: Dockerfile.celery # Specify the Dockerfile name if different
+      context: ./app # Changed context to app directory
+      dockerfile: Dockerfile.celery # Use the Celery specific Dockerfile
     container_name: celery-worker
     env_file:
       - .env
@@ -154,25 +155,30 @@ services:
       - kafka
       - mongo
       - elasticsearch
-    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info"] # Adjust 'app.worker.celery_app' to your Celery app path
+    # Command overrides the CMD in Dockerfile.celery
+    command: ["celery", "-A", "app.tasks", "worker", "--loglevel=info"] # Corrected Celery app path
     volumes:
-      - .:/app
+      # Mount the app directory for development; adjust if needed for production
+      - ./app:/app
     networks:
       - app-network
 
   celery-beat:
     build:
-      context: .
-      dockerfile: Dockerfile.celery # Re-use the same image? Or create a specific one?
+      context: ./app # Changed context to app directory
+      dockerfile: Dockerfile.celery # Use the Celery specific Dockerfile
     container_name: celery-beat
     env_file:
       - .env
     depends_on:
       - redis
       - kafka
-    command: ["celery", "-A", "app.worker.celery_app", "beat", "--loglevel=info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"] # Adjust app path and scheduler if needed
+    # Command overrides the CMD in Dockerfile.celery
+    # Note: Using the default Celery beat scheduler, not Django DB scheduler unless django_celery_beat is installed and configured
+    command: ["celery", "-A", "app.tasks", "beat", "--loglevel=info"] # Corrected Celery app path
     volumes:
-      - .:/app
+      # Mount the app directory for development; adjust if needed for production
+      - ./app:/app
     networks:
       - app-network
 

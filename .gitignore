@@ -1,0 +1,84 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+wheelhouse/
+*.tar.gz
+*.zip
+
+# Virtual Environments
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE configuration files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Editor backup/swap files
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite3
+
+# Test artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+
+# Type checker cache
+.mypy_cache/
+
+# Secrets - IMPORTANT!
+.env
+
+# Prometheus multiprocess directory (if created locally)
+/tmp/prometheus_multiproc_dir/
+
+# IPython Notebook checkpoints
+.ipynb_checkpoints
+
+# Python specific
+*.spec
+
+# Instance folder (e.g., Flask)
+instance/
+
+# Runtime files
+*.pid
+*.seed
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# dotenv
+.env.*
+!.env.example
+
+# Celery pidfiles
+*.pid
