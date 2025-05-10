@@ -1,20 +1,31 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 class PostPlatform(ABC):
-    """Abstract base class for all posting platforms."""
+    """Abstract base class for a social media platform integration."""
 
     @abstractmethod
-    async def send(self, content: Dict[str, Any]) -> Dict[str, Any]:
+    def send(self, content: dict) -> dict:
         """
-        Sends the post content to the specific platform.
+        Sends content to the specific social media platform.
 
         Args:
-            content: A dictionary containing platform-specific post data.
+            content (dict): A dictionary containing the post details. 
+                            Structure depends on the platform's requirements.
+                            Example: {"text": "Hello world!", "image_url": "..."}
 
         Returns:
-            A dictionary containing the result of the posting attempt
-            (e.g., {'success': True, 'post_id': 'platform_post_id'} or
-             {'success': False, 'error': 'error message'}).
+            dict: A dictionary containing the response from the platform, 
+                  typically including post ID or status.
+                  Example: {"id": "12345", "status": "posted"}
+        
+        Raises:
+            NotImplementedError: If the platform's send method is not implemented.
+            Exception: For any API call or other operational errors.
         """
         pass
+
+    def __str__(self) -> str:
+        return self.__class__.__name__
